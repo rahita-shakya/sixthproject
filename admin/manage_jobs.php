@@ -113,6 +113,7 @@ if (!$result) {
         </div>
 
         <div class="list-group-item">
+            
     <h4><?php echo htmlspecialchars($job['title']); ?></h4>
     <p><strong>Status:</strong> <?php echo ucfirst($job['status']); ?></p>
     <!-- <p><strong>Category:</strong> <?php echo htmlspecialchars($job['category_name']); ?></p> -->
