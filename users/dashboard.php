@@ -70,7 +70,7 @@ echo "Welcome to JobSelect Dashboard!";
         <p class="mb-4">Welcome to your dashboard! Choose an action below.</p>
         
         <a href="search_jobs.php" class="btn btn-dashboard">Search Jobs</a>
-        <a href="../core/recommendation.php" class="btn btn-dashboard">Recommended Jobs</a>
+        <a href="../recommended_jobs.php" class="btn btn-dashboard">Recommended Jobs</a>
         <a href="messages.php" class="btn btn-dashboard">Messages</a>
         <a href="logout.php" class="btn btn-dashboard">Logout</a>
 

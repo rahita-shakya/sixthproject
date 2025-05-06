@@ -1,11 +1,13 @@
 <?php
 require_once '../core/database.php';
+
 function sanitize($data) {
     $data = trim($data);
     $data = stripslashes($data);
     $data = htmlspecialchars($data);
     return $data;
 }
+
 session_start();
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
@@ -23,9 +25,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         if (password_verify($password, $hashed_password)) {
             $_SESSION['user_id'] = $id;
-            echo "Session user_id is: " . $_SESSION['user_id']; // TEMP for debugging
-                        $_SESSION['user_name'] = $name;
-            echo "<script>alert('Login Successful! Redirecting to Dashboard...'); window.location.href='dashboard.php';</script>";
+            $_SESSION['user_name'] = $name;
+
+            // Check if user has selected any skills
+            $checkSkillStmt = $conn->prepare("SELECT COUNT(*) AS count FROM user_skills WHERE user_id = ?");
+            $checkSkillStmt->bind_param("i", $id);
+            $checkSkillStmt->execute();
+            $skillResult = $checkSkillStmt->get_result();
+            $skillRow = $skillResult->fetch_assoc();
+
+            if ($skillRow['count'] == 0) {
+                // No skills selected yet
+                echo "<script>alert('Welcome! Please select your skills first.'); window.location.href='select_skills.php';</script>";
+            } else {
+                // Skills found, go to dashboard
+                echo "<script>alert('Login Successful! Redirecting to Dashboard...'); window.location.href='dashboard.php';</script>";
+            }
+
         } else {
             $error = "Invalid password!";
         }

@@ -73,6 +73,8 @@ error_reporting(E_ALL);
                     <option value="Accounting">Accounting</option>
                     <option value="Frontend Developer">Frontend Developer</option>
                     <option value="Fullstack developer">Fullstack developer</option>
+                    <option value="Manager">Project  Manager</option>
+                    <option value="Front Desk officer">Front desk officer</option>
                 </select>
             </div>
 
