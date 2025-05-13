@@ -2,13 +2,10 @@
 require_once 'core/database.php';
 session_start();
 
-
-
-
 $user_id = $_SESSION['user_id'];
 $userSkills = [];
 
-// Get user skills
+// Step 1: Get user skills
 $stmt = $conn->prepare("SELECT skill FROM user_skills WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
 $stmt->execute();
@@ -17,27 +14,52 @@ while ($row = $result->fetch_assoc()) {
     $userSkills[] = strtolower(trim($row['skill']));
 }
 
-// Get all approved jobs
-$jobQuery = $conn->query("SELECT * FROM jobs WHERE status='approved'");
+// Step 2: Get all approved jobs with company name using JOIN
+$jobQuery = $conn->query("
+   SELECT jobs.*, companies.name AS company_name
+
+    FROM jobs 
+    JOIN companies ON jobs.company_id = companies.id 
+    WHERE jobs.status = 'approved'
+");
+
 $recommendedJobs = [];
 
-function getMatchScore($userSkills, $jobSkillsStr) {
-    $jobSkills = array_map('strtolower', array_map('trim', explode(',', $jobSkillsStr)));
-    $matched = array_intersect($userSkills, $jobSkills);
+// Step 3: Define matching logic
+function getMatchScore($userSkills, $roleSkills) {
+    if (empty($roleSkills)) return 0;
 
-    return count($jobSkills) > 0 ? (count($matched) / count($jobSkills)) * 100 : 0;
+    $roleSkills = array_map('strtolower', array_map('trim', $roleSkills));
+    $matched = array_intersect($userSkills, $roleSkills);
+
+    return count($roleSkills) > 0 ? (count($matched) / count($roleSkills)) * 100 : 0;
 }
 
+// Step 4: Match jobs and calculate scores
 while ($job = $jobQuery->fetch_assoc()) {
-    $score = getMatchScore($userSkills, $job['skills_required']);
+    $role = $job['title'];
+
+    // Get skills required for this role
+    $stmt = $conn->prepare("SELECT skill FROM job_role_skills WHERE role = ?");
+    $stmt->bind_param("s", $role);
+    $stmt->execute();
+    $skillResult = $stmt->get_result();
+
+    $roleSkills = [];
+    while ($skillRow = $skillResult->fetch_assoc()) {
+        $roleSkills[] = strtolower(trim($skillRow['skill']));
+    }
+
+    $score = getMatchScore($userSkills, $roleSkills);
     if ($score > 0) {
         $job['match_score'] = round($score);
+        $job['skills_required'] = implode(', ', $roleSkills); // For display
         $recommendedJobs[] = $job;
     }
 }
 
-// Sort by match score
-usort($recommendedJobs, function($a, $b) {
+// Step 5: Sort by match score
+usort($recommendedJobs, function ($a, $b) {
     return $b['match_score'] <=> $a['match_score'];
 });
 ?>
@@ -52,7 +74,7 @@ usort($recommendedJobs, function($a, $b) {
 <body>
     <div class="container mt-5">
         <h2 class="mb-4 text-center">Recommended Jobs for You</h2>
-        
+
         <?php if (empty($recommendedJobs)): ?>
             <div class="alert alert-info text-center">No matching jobs found for your skills. Try updating your skills.</div>
         <?php else: ?>

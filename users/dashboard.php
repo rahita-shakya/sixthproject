@@ -72,6 +72,11 @@ echo "Welcome to JobSelect Dashboard!";
         <a href="search_jobs.php" class="btn btn-dashboard">Search Jobs</a>
         <a href="../recommended_jobs.php" class="btn btn-dashboard">Recommended Jobs</a>
         <a href="messages.php" class="btn btn-dashboard">Messages</a>
+        <a href="my_skills.php" class="btn btn-dashboard">My Skills</a>
+        <!-- <a href="view_job.php" class="btn btn-dashboard">View Sample Job</a> -->
+
+
+
         <a href="logout.php" class="btn btn-dashboard">Logout</a>
 
         <div class="link-container mt-3">
