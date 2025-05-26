@@ -39,9 +39,33 @@ while ($row = $skills_result->fetch_assoc()) {
 }
 ?>
 
-<h2>Job Details</h2>
-<p><strong>Title:</strong> <?= htmlspecialchars($job['title']) ?></p>
-<p><strong>Category:</strong> <?= htmlspecialchars($job['category']) ?></p>
-<p><strong>Description:</strong> <?= nl2br(htmlspecialchars($job['description'])) ?></p>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Details</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
 
-<a href="search_jobs.php">← Back to job list</a>
+<div class="container mt-5">
+    <div class="card shadow-sm">
+        <div class="card-header bg-primary text-white">
+            <h3 class="mb-0">Job Details</h3>
+        </div>
+        <div class="card-body">
+            <p><strong>Title:</strong> <?= htmlspecialchars($job['title']) ?></p>
+            <p><strong>Category:</strong> <?= htmlspecialchars($job['category']) ?></p>
+            <p><strong>Description:</strong><br><?= nl2br(htmlspecialchars($job['description'])) ?></p>
+
+            <div class="mt-3">
+    <a href="search_jobs.php" class="btn btn-secondary">← Back to Job List</a>
+    <a href="apply_job.php?job_id=<?= $job['id'] ?>" class="btn btn-success ms-2">Apply Now</a>
+</div>
+
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

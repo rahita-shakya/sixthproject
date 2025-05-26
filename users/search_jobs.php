@@ -100,16 +100,40 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 <script>
-    // Toggle description visibility
     document.querySelectorAll('.show-description').forEach(function(button) {
-        button.addEventListener('click', function() {
+        button.addEventListener('click', function () {
             const jobId = this.getAttribute('data-job-id');
             const descriptionDiv = document.getElementById('job-description-' + jobId);
-            descriptionDiv.style.display = descriptionDiv.style.display === 'block' ? 'none' : 'block';
+
+            // Toggle visibility
+            const isVisible = descriptionDiv.style.display === 'block';
+            descriptionDiv.style.display = isVisible ? 'none' : 'block';
+
+            // Only log if opening for the first time
+            if (!isVisible) {
+                fetch('log_interaction.php', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: 'job_id=' + jobId + '&action=view'
+                }).then(response => {
+                    return response.text();
+                }).then(data => {
+                    console.log(data);  // For debugging, see if it logs successfully
+                }).catch(error => {
+                    console.error('Error:', error);
+                });
+            }
         });
     });
 </script>
+</body>
+</html>
+
+
 
 </body>
 </html>

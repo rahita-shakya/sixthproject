@@ -8,7 +8,7 @@ if (!isset($_SESSION['user_id'])) {
     exit();
 }
 
-echo "Welcome to JobSelect Dashboard!";
+
 ?>
 
 <!DOCTYPE html>

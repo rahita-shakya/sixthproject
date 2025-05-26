@@ -2,48 +2,75 @@
 require_once '../core/database.php';
 session_start();
 
-function checkLogin() {
-    if (!isset($_SESSION['user_id'])) {
-        header("Location: login.php");
-        exit();
-    }
+// ✅ Ensure user is logged in
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit();
 }
-checkLogin();
 
-$job_id = intval($_GET['job_id']);
-$applicant_id = $_SESSION['user_id'];
+$user_id = $_SESSION['user_id'];
+$job_id = $_GET['job_id'] ?? null;
 
+if (!$job_id) {
+    echo "<div class='alert alert-danger'>Invalid job ID.</div>";
+    exit();
+}
+
+// ✅ Check if the user has already applied for this job
+$stmt = $conn->prepare("SELECT id FROM job_interactions WHERE user_id = ? AND job_id = ? AND action = 'apply'");
+$stmt->bind_param("ii", $user_id, $job_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+if ($result->num_rows > 0) {
+    echo "<div class='alert alert-info'>You have already applied for this job.</div>";
+    echo "<a href='search_jobs.php' class='btn btn-primary'>Back to Job Listings</a>";
+    exit();
+}
+
+// ✅ Handle form submission (Resume upload and application submission)
 if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $address = trim($_POST['address']);
     $message = trim($_POST['message']);
 
-    // Handle file upload
+    // Handle file upload (Resume)
     $resume = $_FILES['resume']['name'];
     $target_dir = "../uploads/resumes/";
-    $target_file = $target_dir . basename($_FILES["resume"]["name"]);
+    $target_file = $target_dir . basename($resume);
+    $file_ext = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
 
-    if (move_uploaded_file($_FILES["resume"]["tmp_name"], $target_file)) {
-        // Insert into applications
+    if ($file_ext != 'pdf') {
+        echo "<div class='alert alert-danger'>Only PDF files are allowed for resume upload.</div>";
+    } elseif (move_uploaded_file($_FILES["resume"]["tmp_name"], $target_file)) {
+        // ✅ Insert into applications table
         $stmt = $conn->prepare("INSERT INTO applications (applicant_id, job_id, resume, address, message) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("iisss", $applicant_id, $job_id, $resume, $address, $message);
+        $stmt->bind_param("iisss", $user_id, $job_id, $resume, $address, $message);
         
         if ($stmt->execute()) {
-            // Track view count for recommendation
-            $conn->query("INSERT INTO job_views (applicant_id, job_id, view_count) VALUES ($applicant_id, $job_id, 1) 
+            // ✅ Track job view for recommendations (Increment view count)
+            $conn->query("INSERT INTO job_views (applicant_id, job_id, view_count) 
+                          VALUES ($user_id, $job_id, 1) 
                           ON DUPLICATE KEY UPDATE view_count = view_count + 1");
 
-            echo "<script>alert('Application submitted successfully!'); window.location.href='dashboard.php';</script>";
+            // ✅ Log the apply action for future reference (Avoid duplicate apply actions)
+            $stmt = $conn->prepare("INSERT INTO job_interactions (user_id, job_id, action) VALUES (?, ?, 'apply')");
+            $stmt->bind_param("ii", $user_id, $job_id);
+            $stmt->execute();
+
+            // ✅ Success message
+            echo "<div class='alert alert-success text-center mt-5'>You have successfully applied for this job!</div>";
+            echo "<a href='search_jobs.php' class='btn btn-primary'>Back to Job Listings</a>";
             exit;
         } else {
-            echo "Error: " . $stmt->error;
+            echo "<div class='alert alert-danger'>Error submitting your application: " . $stmt->error . "</div>";
         }
     } else {
-        echo "Failed to upload resume.";
+        echo "<div class='alert alert-danger'>Failed to upload resume. Please try again.</div>";
     }
 }
 ?>
 
-<!-- HTML Form with Bootstrap -->
+<!-- HTML Form to apply for a job -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -57,7 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         <h3 class="text-center mb-4">Apply for Job</h3>
         <form method="POST" enctype="multipart/form-data">
             <div class="mb-3">
-                <label for="resume" class="form-label">Resume File (PDF only):</label>
+                <label for="resume" class="form-label">Resume (PDF only):</label>
                 <input type="file" class="form-control" name="resume" accept=".pdf" required>
             </div>
 
@@ -68,12 +95,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
             <div class="mb-3">
                 <label for="message" class="form-label">Message:</label>
-                <textarea name="message" class="form-control" rows="4" placeholder="Write a message..."></textarea>
+                <textarea name="message" class="form-control" rows="4" placeholder="Write a message to the employer..."></textarea>
             </div>
 
             <div class="d-flex justify-content-between">
                 <button type="submit" class="btn btn-primary">Submit Application</button>
-                <a href="dashboard.php" class="btn btn-secondary">Cancel</a>
+                <a href="search_jobs.php" class="btn btn-secondary">Cancel</a>
             </div>
         </form>
     </div>

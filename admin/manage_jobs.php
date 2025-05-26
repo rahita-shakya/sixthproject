@@ -9,13 +9,15 @@ if (isset($_SESSION['company_logged_in']) && $_SESSION['company_logged_in'] === 
               FROM jobs 
               JOIN categories ON jobs.category_id = categories.id 
               JOIN companies ON jobs.company_id = companies.id 
-              WHERE jobs.company_id = $company_id";
+              WHERE jobs.company_id = $company_id 
+              ORDER BY jobs.id DESC";
 }
- elseif (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
+elseif (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
     // Admin can see all jobs, with their status
     $query = "SELECT jobs.*, companies.name AS company_name 
               FROM jobs 
-              JOIN companies ON jobs.company_id = companies.id";
+              JOIN companies ON jobs.company_id = companies.id 
+              ORDER BY jobs.id DESC";
 } else {
     // Redirect if not logged in
     header('Location: login.php');
@@ -29,7 +31,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $company_id = intval($_POST['company_id']);
     $description = sanitize($_POST['description']);
 
-    // Prepare and bind for job insertion
     $stmt = $conn->prepare("INSERT INTO jobs (title, category_id, company_id, description, status) VALUES (?, ?, ?, ?, 'pending')");
     $stmt->bind_param("siis", $title, $category_id, $company_id, $description);
 
@@ -78,8 +79,12 @@ if (isset($_GET['reject'])) {
 // Fetch Jobs
 $result = $conn->query($query);
 if (!$result) {
-    echo "Error: " . $conn->error;  // Add error reporting to identify the issue
+    echo "Error: " . $conn->error;
     exit();
+}
+
+function sanitize($input) {
+    return htmlspecialchars(trim($input));
 }
 ?>
 
@@ -99,9 +104,7 @@ if (!$result) {
 </head>
 <body>
 <div class="container mt-5">
-    <!-- Go Back Button -->
     <a href="dashboard.php" class="btn btn-secondary go-back-btn">Go Back</a>
-    
     <h1 class="mb-4">Manage Jobs</h1>
 
     <!-- Job Add Form (for company only) -->
@@ -112,14 +115,6 @@ if (!$result) {
             <input type="text" name="title" id="title" class="form-control" required>
         </div>
 
-        <div class="list-group-item">
-            
-    <h4><?php echo htmlspecialchars($job['title']); ?></h4>
-    <p><strong>Status:</strong> <?php echo ucfirst($job['status']); ?></p>
-    <!-- <p><strong>Category:</strong> <?php echo htmlspecialchars($job['category_name']); ?></p> -->
-    <p><?php echo htmlspecialchars($job['description']); ?></p>
-
-        
         <div class="mb-3">
             <label for="category_id" class="form-label">Category</label>
             <select name="category_id" id="category_id" class="form-control" required>
@@ -131,6 +126,8 @@ if (!$result) {
                 ?>
             </select>
         </div>
+
+        <input type="hidden" name="company_id" value="<?php echo $_SESSION['company_id']; ?>">
 
         <div class="mb-3">
             <label for="description" class="form-label">Job Description</label>
@@ -144,26 +141,22 @@ if (!$result) {
     <!-- Job List -->
     <h2>Existing Jobs</h2>
     <div class="list-group">
-        <?php 
-        if ($result->num_rows > 0):  // Check if any jobs were fetched
-            while ($job = $result->fetch_assoc()): ?>
-            <div class="list-group-item">
-                <h4><?php echo htmlspecialchars($job['title']); ?></h4>
-                <p><strong>Status:</strong> <?php echo ucfirst($job['status']); ?></p>
-                <!-- <p><strong>Category:</strong> <?php echo htmlspecialchars($job['category_name']); ?></p> -->
-                <p><?php echo htmlspecialchars($job['description']); ?></p>
-                
-                <?php if (isset($_SESSION['company_logged_in']) && $_SESSION['company_logged_in'] === true): ?>
-                    <!-- Only the company that posted the job can delete -->
-                    <a href="?delete=<?php echo $job['id']; ?>" class="btn btn-danger btn-sm">Delete</a>
-                <?php elseif (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true): ?>
-                    <!-- Admin can approve or reject jobs -->
-                    <?php if ($job['status'] == 'pending'): ?>
-                        <a href="?approve=<?php echo $job['id']; ?>" class="btn btn-success btn-sm">Approve</a>
-                        <a href="?reject=<?php echo $job['id']; ?>" class="btn btn-danger btn-sm">Reject</a>
+        <?php if ($result->num_rows > 0): ?>
+            <?php while ($job = $result->fetch_assoc()): ?>
+                <div class="list-group-item">
+                    <h4><?php echo htmlspecialchars($job['title']); ?></h4>
+                    <p><strong>Status:</strong> <?php echo ucfirst($job['status']); ?></p>
+                    <p><?php echo htmlspecialchars($job['description']); ?></p>
+
+                    <?php if (isset($_SESSION['company_logged_in']) && $_SESSION['company_logged_in'] === true): ?>
+                        <a href="?delete=<?php echo $job['id']; ?>" class="btn btn-danger btn-sm">Delete</a>
+                    <?php elseif (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true): ?>
+                        <?php if ($job['status'] == 'pending'): ?>
+                            <a href="?approve=<?php echo $job['id']; ?>" class="btn btn-success btn-sm">Approve</a>
+                            <a href="?reject=<?php echo $job['id']; ?>" class="btn btn-danger btn-sm">Reject</a>
+                        <?php endif; ?>
                     <?php endif; ?>
-                <?php endif; ?>
-            </div>
+                </div>
             <?php endwhile; ?>
         <?php else: ?>
             <p>No jobs available to display.</p>

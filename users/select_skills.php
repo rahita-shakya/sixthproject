@@ -12,27 +12,36 @@ $success = '';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!empty($_POST['skills'])) {
-        $skills = $_POST['skills'];
+    $selected_skills = isset($_POST['skills']) ? $_POST['skills'] : [];
+    $other_skill = isset($_POST['other_skill']) ? trim($_POST['other_skill']) : '';
 
-        // Remove existing skills before inserting new ones (optional, to avoid duplicates)
+    if (empty($selected_skills) && empty($other_skill)) {
+        $error = "Please select or enter at least one skill.";
+    } else {
+        // Clear previous skills
         $deleteStmt = $conn->prepare("DELETE FROM user_skills WHERE user_id = ?");
         $deleteStmt->bind_param("i", $user_id);
         $deleteStmt->execute();
 
-        $stmt = $conn->prepare("INSERT INTO user_skills (user_id, skill) VALUES (?, ?)");
+        // Prepare insert statement
+        $insertStmt = $conn->prepare("INSERT INTO user_skills (user_id, skill) VALUES (?, ?)");
 
-        foreach ($skills as $skill) {
+        // Insert selected skills
+        foreach ($selected_skills as $skill) {
             $skill = htmlspecialchars(trim($skill));
-            $stmt->bind_param("is", $user_id, $skill);
-            $stmt->execute();
+            $insertStmt->bind_param("is", $user_id, $skill);
+            $insertStmt->execute();
         }
 
-        $success = "Skills saved successfully!";
+        // Insert 'Other' skill if provided
+        if (!empty($other_skill)) {
+            $clean_skill = htmlspecialchars($other_skill);
+            $insertStmt->bind_param("is", $user_id, $clean_skill);
+            $insertStmt->execute();
+        }
+
         echo "<script>alert('Skills saved successfully! Redirecting to Dashboard...'); window.location.href='dashboard.php';</script>";
         exit();
-    } else {
-        $error = "Please select at least one skill.";
     }
 }
 ?>
@@ -57,19 +66,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             margin-top: 50px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.2);
         }
-         .form-check-input {
-         width: 1.2em;
-        height: 1.2em;
-        border: 2px solid #5B86E5;
-        background-color: white;
-        box-shadow: none;
-        cursor: pointer;
+        .form-check-input {
+            width: 1.2em;
+            height: 1.2em;
+            border: 2px solid #5B86E5;
+            background-color: white;
+            box-shadow: none;
+            cursor: pointer;
         }
         .form-check-input:checked {
-        background-color: #5B86E5;
-        border-color: #5B86E5;
-}
-
+            background-color: #5B86E5;
+            border-color: #5B86E5;
+        }
         .btn-save {
             background-color: #5B86E5;
             color: white;
@@ -84,25 +92,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="skills-container">
         <h2 class="text-center mb-4">Select Your Skills</h2>
 
-        <?php if ($error) { echo "<div class='alert alert-danger text-center'>$error</div>"; } ?>
-        <?php if ($success) { echo "<div class='alert alert-success text-center'>$success</div>"; } ?>
+        <?php if ($error) echo "<div class='alert alert-danger text-center'>$error</div>"; ?>
+        <?php if ($success) echo "<div class='alert alert-success text-center'>$success</div>"; ?>
 
         <form method="POST">
             <div class="row">
                 <?php
-                // Example skill options (you can fetch from a DB table if preferred)
-                $availableSkills = ["PHP", "JavaScript", "Java", "Python", "HTML", "CSS", "React", "MySQL", "Laravel", "C++",
-                "Excel","Word","Powerpoint","Photoshop", "Figma","Canva","Video Editing"];
-                foreach ($availableSkills as $index => $skill) {
-                    echo '
-                    <div class="col-md-6 mb-2">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox" name="skills[]" value="'. $skill .'" id="skill'.$index.'">
-                            <label class="form-check-label" for="skill'.$index.'">'. $skill .'</label>
-                        </div>
-                    </div>';
+                // Fetch distinct skills from the database
+                $result = $conn->query("SELECT DISTINCT skill_name FROM skills ORDER BY skill_name ASC");
+                if ($result->num_rows > 0) {
+                    $index = 0;
+                    while ($row = $result->fetch_assoc()) {
+                        $skill = htmlspecialchars($row['skill_name']);
+                        echo '
+                        <div class="col-md-6 mb-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="skills[]" value="'. $skill .'" id="skill'.$index.'">
+                                <label class="form-check-label" for="skill'.$index.'">'. $skill .'</label>
+                            </div>
+                        </div>';
+                        $index++;
+                    }
+                } else {
+                    echo "<p>No skills available from companies yet.</p>";
                 }
                 ?>
+            </div>
+
+            <!-- Other Skill input -->
+            <div class="mt-4">
+                <label for="other_skill">Other Skill (if not listed):</label>
+                <input type="text" name="other_skill" id="other_skill" class="form-control" placeholder="Enter other skill">
             </div>
 
             <div class="text-center mt-4">

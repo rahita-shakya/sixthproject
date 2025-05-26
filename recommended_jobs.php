@@ -3,62 +3,89 @@ require_once 'core/database.php';
 session_start();
 
 $user_id = $_SESSION['user_id'];
-$userSkills = [];
 
-// Step 1: Get user skills
-$stmt = $conn->prepare("SELECT skill FROM user_skills WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$result = $stmt->get_result();
-while ($row = $result->fetch_assoc()) {
-    $userSkills[] = strtolower(trim($row['skill']));
-}
-
-// Step 2: Get all approved jobs with company name using JOIN
+// Step 1: Fetch all approved jobs with company name (Content Section)
 $jobQuery = $conn->query("
-   SELECT jobs.*, companies.name AS company_name
-
+    SELECT jobs.*, companies.name AS company_name 
     FROM jobs 
     JOIN companies ON jobs.company_id = companies.id 
     WHERE jobs.status = 'approved'
 ");
 
-$recommendedJobs = [];
-
-// Step 3: Define matching logic
-function getMatchScore($userSkills, $roleSkills) {
-    if (empty($roleSkills)) return 0;
-
-    $roleSkills = array_map('strtolower', array_map('trim', $roleSkills));
-    $matched = array_intersect($userSkills, $roleSkills);
-
-    return count($roleSkills) > 0 ? (count($matched) / count($roleSkills)) * 100 : 0;
+$jobs = [];
+while ($job = $jobQuery->fetch_assoc()) {
+    // You can add skills to each job in this section if you need
+    $job['skills_required'] = ''; // Placeholder for the skills
+    $jobs[] = $job;
 }
 
-// Step 4: Match jobs and calculate scores
-while ($job = $jobQuery->fetch_assoc()) {
+// Step 2: Get all unique skills from the job_role_skills table for collaborative filtering
+$skillSet = [];
+$result = $conn->query("SELECT DISTINCT skill FROM job_role_skills");
+while ($row = $result->fetch_assoc()) {
+    $skillSet[] = strtolower(trim($row['skill']));
+}
+
+// Map skills to index
+$skillIndex = array_flip($skillSet); // e.g., ['php' => 0, 'mysql' => 1, ...]
+$userVector = array_fill(0, count($skillSet), 0);
+
+// Step 3: Create user's skill vector (Collaborative Filtering Section)
+$stmt = $conn->prepare("SELECT skill FROM user_skills WHERE user_id = ?");
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$userSkillsResult = $stmt->get_result();
+while ($row = $userSkillsResult->fetch_assoc()) {
+    $skill = strtolower(trim($row['skill']));
+    if (isset($skillIndex[$skill])) {
+        $userVector[$skillIndex[$skill]] = 1;
+    }
+}
+
+
+
+$recommendedJobs = [];
+
+// Step 4: Compute recommendations using matrix multiplication (Collaborative Filtering)
+foreach ($jobs as $job) {
     $role = $job['title'];
 
-    // Get skills required for this role
+    // Create job skill vector
+    $jobVector = array_fill(0, count($skillSet), 0);
     $stmt = $conn->prepare("SELECT skill FROM job_role_skills WHERE role = ?");
     $stmt->bind_param("s", $role);
     $stmt->execute();
-    $skillResult = $stmt->get_result();
+    $jobSkillsResult = $stmt->get_result();
 
-    $roleSkills = [];
-    while ($skillRow = $skillResult->fetch_assoc()) {
-        $roleSkills[] = strtolower(trim($skillRow['skill']));
+    $jobSkills = [];
+    while ($skillRow = $jobSkillsResult->fetch_assoc()) {
+        $skill = strtolower(trim($skillRow['skill']));
+        $jobSkills[] = $skill;
+        if (isset($skillIndex[$skill])) {
+            $jobVector[$skillIndex[$skill]] = 1;
+        }
     }
 
-    $score = getMatchScore($userSkills, $roleSkills);
+
+    // Matrix multiplication: Dot product
+    $matchScore = 0;
+    for ($i = 0; $i < count($skillSet); $i++) {
+        $matchScore += $userVector[$i] * $jobVector[$i];
+    }
+
+  
+
+    $totalJobSkills = array_sum($jobVector);
+    $score = ($totalJobSkills > 0) ? ($matchScore / $totalJobSkills) * 100 : 0;
+
     if ($score > 0) {
         $job['match_score'] = round($score);
-        $job['skills_required'] = implode(', ', $roleSkills); // For display
+        $job['skills_required'] = implode(', ', $jobSkills);
         $recommendedJobs[] = $job;
     }
 }
 
-// Step 5: Sort by match score
+// Step 5: Sort jobs by match score
 usort($recommendedJobs, function ($a, $b) {
     return $b['match_score'] <=> $a['match_score'];
 });
@@ -73,10 +100,10 @@ usort($recommendedJobs, function ($a, $b) {
 </head>
 <body>
     <div class="container mt-5">
-        <h2 class="mb-4 text-center">Recommended Jobs for You</h2>
+        <h2 class="mb-4 text-center">Recommended Jobs (Matrix Match)</h2>
 
         <?php if (empty($recommendedJobs)): ?>
-            <div class="alert alert-info text-center">No matching jobs found for your skills. Try updating your skills.</div>
+            <div class="alert alert-info text-center">No matching jobs found. Update your skills for better matches.</div>
         <?php else: ?>
             <?php foreach ($recommendedJobs as $job): ?>
                 <div class="card mb-3">
@@ -85,8 +112,10 @@ usort($recommendedJobs, function ($a, $b) {
                         <h6 class="card-subtitle mb-2 text-muted"><?= htmlspecialchars($job['company_name']) ?></h6>
                         <p class="card-text"><?= nl2br(htmlspecialchars($job['description'])) ?></p>
                         <p><strong>Required Skills:</strong> <?= htmlspecialchars($job['skills_required']) ?></p>
-                        <p><strong>Match:</strong> <?= $job['match_score'] ?>%</p>
-                        <a href="job_details.php?id=<?= $job['id'] ?>" class="btn btn-primary">View Job</a>
+                        <p><strong>Match Score:</strong> <?= $job['match_score'] ?>%</p>
+                 <a href="users/view_job.php?job_id=<?= $job['id'] ?>" class="btn btn-primary">View Job</a>
+
+
                     </div>
                 </div>
             <?php endforeach; ?>

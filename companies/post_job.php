@@ -2,9 +2,6 @@
 session_start();
 require_once '../core/database.php';
 
-// Enable error reporting for debugging
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
 ?>
 
 <!DOCTYPE html>
@@ -51,17 +48,17 @@ error_reporting(E_ALL);
         <form action="process_post_job.php" method="POST">
             <div class="mb-3">
                 <label for="title" class="form-label">Job Title</label>
-                <input type="text" name="title" id="title" class="form-control" placeholder="Enter job title" required>
+                <input type="text" name="title" id="title" class="form-control" required>
             </div>
 
             <div class="mb-3">
                 <label for="description" class="form-label">Job Description</label>
-                <textarea name="description" id="description" class="form-control" rows="5" placeholder="Write a short description..." required></textarea>
+                <textarea name="description" id="description" class="form-control" rows="5" required></textarea>
             </div>
 
             <div class="mb-3">
                 <label for="location" class="form-label">Job Location</label>
-                <input type="text" name="location" id="location" class="form-control" placeholder="Enter job location" required>
+                <input type="text" name="location" id="location" class="form-control" required>
             </div>
 
             <div class="mb-3">
@@ -73,9 +70,15 @@ error_reporting(E_ALL);
                     <option value="Accounting">Accounting</option>
                     <option value="Frontend Developer">Frontend Developer</option>
                     <option value="Fullstack developer">Fullstack developer</option>
-                    <option value="Manager">Project  Manager</option>
+                    <option value="Manager">Project Manager</option>
                     <option value="Front Desk officer">Front desk officer</option>
                 </select>
+            </div>
+
+            <div class="mb-3">
+                <label for="skills" class="form-label">Required Skills</label>
+                <input type="text" name="skills" id="skills" class="form-control" placeholder="e.g., PHP, MySQL, React" required>
+                <small class="text-muted">Separate multiple skills with commas.</small>
             </div>
 
             <button type="submit" class="btn btn-primary w-100">Post Job</button>
