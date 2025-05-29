@@ -2,12 +2,6 @@
 session_start();
 require_once '../core/database.php';
 
-// ✅ Check if company is logged in
-if (!isset($_SESSION['company_id']) || empty($_SESSION['company_id'])) {
-    header("Location: login.php");
-    exit();
-}
-
 $company_login_id = $_SESSION['company_id'];
 
 // 🔍 Get the actual company ID using the login ID
@@ -59,6 +53,7 @@ if ($row = $resultid->fetch_assoc()) {
                     </span>
 
                     <div class="mt-3">
+                        <a href="view_applicants.php?job_id=<?= $job['id'] ?>" class="btn btn-warning btn-sm">👁️ View Applicants</a>
                         <a href="edit_job.php?id=<?= $job['id'] ?>" class="btn btn-primary btn-sm">✏️ Edit</a>
                         <a href="delete_job.php?id=<?= $job['id'] ?>" class="btn btn-danger btn-sm" onclick="return confirm('Are you sure you want to delete this job?')">🗑️ Delete</a>
                     </div>

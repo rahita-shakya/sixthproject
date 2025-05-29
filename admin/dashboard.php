@@ -90,11 +90,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
                 <i class="fa fa-briefcase"></i><br>Manage Jobs
             </a>
         </div>
-        <div class="nav-item">
-            <a href="manage_categories.php" style="color: white; text-decoration: none;">
-                <i class="fa fa-tags"></i><br>Manage Categories
-            </a>
-        </div>
+     
         <div class="nav-item">
             <a href="manage_companies.php" style="color: white; text-decoration: none;">
                 <i class="fa fa-building"></i><br>Manage Companies
@@ -110,7 +106,15 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
                 <i class="fa fa-envelope"></i><br>Messages
             </a>
         </div>
+        <div class="nav-item">
+            <a href="view_application.php" style="color: white; text-decoration: none;">
+                <i class="fa fa-envelope"></i><br>View Applications
+            </a>
+        </div>
     </div>
+     
+</div>
+    
 
     <div class="text-center mt-5">
         <a href="logout.php" class="logout-btn">Logout</a>

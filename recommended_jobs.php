@@ -2,124 +2,108 @@
 require_once 'core/database.php';
 session_start();
 
+if (!isset($_SESSION['user_id'])) {
+    header("Location: login.php");
+    exit;
+}
+
 $user_id = $_SESSION['user_id'];
 
-// Step 1: Fetch all approved jobs with company name (Content Section)
-$jobQuery = $conn->query("
-    SELECT jobs.*, companies.name AS company_name 
-    FROM jobs 
-    JOIN companies ON jobs.company_id = companies.id 
-    WHERE jobs.status = 'approved'
-");
+// Step 1: Get all users who applied for jobs
+$applicationData = [];
+$allUsers = [];
+$allJobs = [];
+$result = $conn->query("SELECT applicant_id AS user_id, job_id FROM applications");
 
-$jobs = [];
-while ($job = $jobQuery->fetch_assoc()) {
-    // You can add skills to each job in this section if you need
-    $job['skills_required'] = ''; // Placeholder for the skills
-    $jobs[] = $job;
-}
-
-// Step 2: Get all unique skills from the job_role_skills table for collaborative filtering
-$skillSet = [];
-$result = $conn->query("SELECT DISTINCT skill FROM job_role_skills");
 while ($row = $result->fetch_assoc()) {
-    $skillSet[] = strtolower(trim($row['skill']));
+    $uid = $row['user_id'];
+    $jid = $row['job_id'];
+    $applicationData[$uid][$jid] = 1;
+    $allUsers[$uid] = true;
+    $allJobs[$jid] = true;
 }
 
-// Map skills to index
-$skillIndex = array_flip($skillSet); // e.g., ['php' => 0, 'mysql' => 1, ...]
-$userVector = array_fill(0, count($skillSet), 0);
-
-// Step 3: Create user's skill vector (Collaborative Filtering Section)
-$stmt = $conn->prepare("SELECT skill FROM user_skills WHERE user_id = ?");
-$stmt->bind_param("i", $user_id);
-$stmt->execute();
-$userSkillsResult = $stmt->get_result();
-while ($row = $userSkillsResult->fetch_assoc()) {
-    $skill = strtolower(trim($row['skill']));
-    if (isset($skillIndex[$skill])) {
-        $userVector[$skillIndex[$skill]] = 1;
+// Step 2: Create user-job matrix
+$jobList = array_keys($allJobs);
+$userJobMatrix = [];
+foreach ($allUsers as $uid => $_) {
+    foreach ($jobList as $jid) {
+        $userJobMatrix[$uid][$jid] = isset($applicationData[$uid][$jid]) ? 1 : 0;
     }
 }
 
+// Step 3: Calculate similarity between current user and others (cosine similarity)
+function cosineSimilarity($vec1, $vec2) {
+    $dot = 0;
+    $normA = 0;
+    $normB = 0;
+    foreach ($vec1 as $k => $v) {
+        $dot += $v * $vec2[$k];
+        $normA += $v * $v;
+        $normB += $vec2[$k] * $vec2[$k];
+    }
+    return ($normA && $normB) ? ($dot / (sqrt($normA) * sqrt($normB))) : 0;
+}
 
+$similarities = [];
+foreach ($userJobMatrix as $uid => $vector) {
+    if ($uid != $user_id) {
+        $similarities[$uid] = cosineSimilarity($userJobMatrix[$user_id], $vector);
+    }
+}
+
+// Step 4: Get job recommendations from top similar users
+arsort($similarities);
+$topUsers = array_slice(array_keys($similarities), 0, 5); // top 5 similar users
 
 $recommendedJobs = [];
-
-// Step 4: Compute recommendations using matrix multiplication (Collaborative Filtering)
-foreach ($jobs as $job) {
-    $role = $job['title'];
-
-    // Create job skill vector
-    $jobVector = array_fill(0, count($skillSet), 0);
-    $stmt = $conn->prepare("SELECT skill FROM job_role_skills WHERE role = ?");
-    $stmt->bind_param("s", $role);
-    $stmt->execute();
-    $jobSkillsResult = $stmt->get_result();
-
-    $jobSkills = [];
-    while ($skillRow = $jobSkillsResult->fetch_assoc()) {
-        $skill = strtolower(trim($skillRow['skill']));
-        $jobSkills[] = $skill;
-        if (isset($skillIndex[$skill])) {
-            $jobVector[$skillIndex[$skill]] = 1;
+foreach ($topUsers as $simUser) {
+    foreach ($userJobMatrix[$simUser] as $jobId => $applied) {
+        if ($applied && !$userJobMatrix[$user_id][$jobId]) {
+            $recommendedJobs[$jobId] = true;
         }
-    }
-
-
-    // Matrix multiplication: Dot product
-    $matchScore = 0;
-    for ($i = 0; $i < count($skillSet); $i++) {
-        $matchScore += $userVector[$i] * $jobVector[$i];
-    }
-
-  
-
-    $totalJobSkills = array_sum($jobVector);
-    $score = ($totalJobSkills > 0) ? ($matchScore / $totalJobSkills) * 100 : 0;
-
-    if ($score > 0) {
-        $job['match_score'] = round($score);
-        $job['skills_required'] = implode(', ', $jobSkills);
-        $recommendedJobs[] = $job;
     }
 }
 
-// Step 5: Sort jobs by match score
-usort($recommendedJobs, function ($a, $b) {
-    return $b['match_score'] <=> $a['match_score'];
-});
+// Step 5: Fetch job details
+$jobs = [];
+if (!empty($recommendedJobs)) {
+    $ids = implode(',', array_keys($recommendedJobs));
+    $result = $conn->query("
+        SELECT jobs.*, companies.name AS company_name 
+        FROM jobs 
+        JOIN companies ON jobs.company_id = companies.id 
+        WHERE jobs.id IN ($ids) AND jobs.status = 'approved'
+    ");
+    while ($row = $result->fetch_assoc()) {
+        $jobs[] = $row;
+    }
+}
 ?>
 
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Recommended Jobs - JobSelect</title>
+    <title>Recommended Jobs (Collaborative)</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container mt-5">
-        <h2 class="mb-4 text-center">Recommended Jobs (Matrix Match)</h2>
-
-        <?php if (empty($recommendedJobs)): ?>
-            <div class="alert alert-info text-center">No matching jobs found. Update your skills for better matches.</div>
-        <?php else: ?>
-            <?php foreach ($recommendedJobs as $job): ?>
-                <div class="card mb-3">
-                    <div class="card-body">
-                        <h5 class="card-title"><?= htmlspecialchars($job['title']) ?></h5>
-                        <h6 class="card-subtitle mb-2 text-muted"><?= htmlspecialchars($job['company_name']) ?></h6>
-                        <p class="card-text"><?= nl2br(htmlspecialchars($job['description'])) ?></p>
-                        <p><strong>Required Skills:</strong> <?= htmlspecialchars($job['skills_required']) ?></p>
-                        <p><strong>Match Score:</strong> <?= $job['match_score'] ?>%</p>
-                 <a href="users/view_job.php?job_id=<?= $job['id'] ?>" class="btn btn-primary">View Job</a>
-
-
-                    </div>
+<div class="container mt-5">
+    <h2 class="mb-4 text-center">Recommended Jobs (Collaborative Filtering)</h2>
+    <?php if (empty($jobs)): ?>
+        <div class="alert alert-info text-center">No recommendations available. Apply to some jobs first.</div>
+    <?php else: ?>
+        <?php foreach ($jobs as $job): ?>
+            <div class="card mb-3">
+                <div class="card-body">
+                    <h5 class="card-title"><?= htmlspecialchars($job['title']) ?></h5>
+                    <h6 class="card-subtitle mb-2 text-muted"><?= htmlspecialchars($job['company_name']) ?></h6>
+                    <p class="card-text"><?= nl2br(htmlspecialchars($job['description'])) ?></p>
+                    <a href="users/view_job.php?job_id=<?= $job['id'] ?>" class="btn btn-primary">View Job</a>
                 </div>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
+</div>
 </body>
 </html>
