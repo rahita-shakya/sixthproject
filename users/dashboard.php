@@ -4,6 +4,7 @@ require_once '../core/database.php';
 require_once '../core/functions.php';
 checkLogin();
 
+
 // Get approved jobs
 $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies.location AS company_location 
                         FROM jobs 
@@ -36,7 +37,7 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
         }
         .dashboard-heading {
             text-align: center;
-            color: #ff4e50;
+            color:rgb(255, 245, 245);
             margin: 30px 0;
         }
         .job-listing-container {
@@ -71,7 +72,9 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
         <a class="navbar-brand fw-bold" href="#">JobSelect</a>
         <div class="d-flex gap-3">
             <a class="nav-link" href="../recommended_jobs_combined.php">Recommended Jobs</a>
-            <a class="nav-link" href="messages.php">Messages</a>
+            <a href="message.php?job_id=<?= $job_id ?>" style="text-decoration: none;">View Status</a>
+
+
             <a class="nav-link" href="my_skills.php">My Skills</a>
             <a class="nav-link" href="logout.php">Logout</a>
         </div>

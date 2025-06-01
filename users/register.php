@@ -73,7 +73,7 @@
             <button type="submit" class="btn btn-register">Register</button>
         </form>
         <p class="login-link mt-3">Already have an account? <a href="login.php" class="text-primary fw-bold">Login here</a></p>
-        <p class="login-link mt-3">Login as an Admin? <a href="../companies/register.php" class="text-primary fw-bold">Company Login</a></p> <!-- Admin Login Link -->
+        
     </div>
 </div>
 

@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         body {
-            background: linear-gradient(to right, #36D1DC, #5B86E5);
+             background: linear-gradient(to right, #ff4e50, #fc913a);
             font-family: 'Poppins', sans-serif;
         }
         .login-container {

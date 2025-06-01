@@ -35,6 +35,7 @@ if ($row = $resultid->fetch_assoc()) {
 </head>
 <body class="bg-light">
 <div class="container mt-5">
+    <a href="../index.php" class="btn btn-secondary mb-3">🔙 Go Back</a>
     <h3 class="mb-4">Posted Jobs - <?= htmlspecialchars($company_name) ?></h3>
     <a href="post_job.php" class="btn btn-success mb-4">➕ Post New Job</a>
 
@@ -63,6 +64,8 @@ if ($row = $resultid->fetch_assoc()) {
     <?php } else { ?>
         <div class="alert alert-info">You haven't posted any jobs yet.</div>
     <?php } ?>
+    
+
 </div>
 </body>
 </html>

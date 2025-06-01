@@ -153,9 +153,11 @@ footer {
                 <li class="nav-item"><a class="nav-link text-dark" href="#about">About</a></li>
                 <li class="nav-item"><a class="nav-link text-dark" href="users/login.php">Login</a></li>
                 <li class="nav-item"><a class="nav-link text-dark" href="users/register.php">Register</a></li>
+                <li class="nav-item"><a class="nav-link text-dark" href="companies/login.php">Company</a></li>
                 <li class="nav-item"><a class="nav-link text-dark" href="admin/login.php">Admin</a></li>
 
-                <li class="nav-item"><a class="nav-link btn btn-primary text-white px-4" href="#contact">Contact</a></li>
+
+           
             </ul>
         </div>
     </div>

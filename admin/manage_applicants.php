@@ -28,6 +28,7 @@ $result = $conn->query("SELECT * FROM applicants");
 </head>
 <body class="bg-light">
     <div class="container mt-5">
+         <a href="dashboard.php" class="btn btn-secondary go-back-btn">Go Back</a>
         <h3 class="text-center mb-4">Manage Applicants</h3>
 
         <div class="list-group">

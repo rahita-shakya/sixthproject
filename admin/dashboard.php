@@ -103,7 +103,7 @@ if (!isset($_SESSION['admin_logged_in']) || $_SESSION['admin_logged_in'] !== tru
         </div>
         <div class="nav-item">
             <a href="manage_messages.php" style="color: white; text-decoration: none;">
-                <i class="fa fa-envelope"></i><br>Messages
+                <i class="fa fa-envelope"></i><br>Job Lists
             </a>
         </div>
         <div class="nav-item">

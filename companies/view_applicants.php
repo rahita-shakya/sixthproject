@@ -30,7 +30,7 @@ if ($row = $resultid->fetch_assoc()) {
 }
 
 // Validate job_id from GET parameters
-$job_id = $_GET['job_id'] ?? 0;
+$job_id = isset($_GET['job_id']) ? (int)$_GET['job_id'] : 0;
 if (!$job_id) {
     echo "<script>alert('Invalid job ID.'); window.location.href='dashboard.php';</script>";
     exit;
@@ -49,36 +49,35 @@ if ($job_row = $job_result->fetch_assoc()) {
     exit;
 }
 
-// Fetch applicants for the specified job
-// Fetch applicants for the specified job
-// Fetch applicants for the specified job
+// Fetch applicants for the specified job including application status
 $stmt = $conn->prepare("
     SELECT 
+        u.id AS applicant_id,
         u.name AS applicant_name,
         u.email AS applicant_email,
         a.message,
         a.resume,
         a.address,
-        a.applied_at
+        a.applied_at,
+        a.status
     FROM applications a
     JOIN applicants u ON a.applicant_id = u.id
     WHERE a.job_id = ?
     ORDER BY a.applied_at DESC
 ");
+
 $stmt->bind_param("i", $job_id);
 $stmt->execute();
 $applicants_result = $stmt->get_result();
-
-
 
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Applicants for <?= htmlspecialchars($job_title) ?> - <?= htmlspecialchars($company_name) ?></title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
 </head>
 <body class="bg-light">
 <div class="container mt-5">
@@ -92,16 +91,37 @@ $applicants_result = $stmt->get_result();
                     <h5 class="mb-1"><?= htmlspecialchars($applicant['applicant_name']) ?></h5>
                     <p class="mb-1"><strong>Email:</strong> <?= htmlspecialchars($applicant['applicant_email']) ?></p>
                     <p class="mb-1"><strong>Message:</strong> <?= nl2br(htmlspecialchars($applicant['message'])) ?></p>
+
                     <?php if (!empty($applicant['resume'])): ?>
-    <p class="mb-1">
-        <strong>Resume:</strong> 
-        <a href="../uploads/resumes/<?= htmlspecialchars($applicant['resume']) ?>" target="_blank">View Resume</a>
-    </p>
-<?php else: ?>
-    <p class="mb-1"><strong>Resume:</strong> Not provided</p>
-<?php endif; ?>
+                        <p class="mb-1">
+                            <strong>Resume:</strong> 
+                            <a href="../uploads/resumes/<?= htmlspecialchars($applicant['resume']) ?>" target="_blank">View Resume</a>
+                        </p>
+                    <?php else: ?>
+                        <p class="mb-1"><strong>Resume:</strong> Not provided</p>
+                    <?php endif; ?>
 
                     <small class="text-muted">Applied on: <?= date("F j, Y, g:i a", strtotime($applicant['applied_at'])) ?></small>
+
+                    <?php if ($applicant['status'] === 'pending' || $applicant['status'] === null || $applicant['status'] === ''): ?>
+                        <!-- Show buttons only if status is pending or empty -->
+                        <form method="POST" action="send_decision.php" class="mt-2">
+                            <input type="hidden" name="job_id" value="<?= $job_id ?>" />
+                            <input type="hidden" name="applicant_id" value="<?= htmlspecialchars($applicant['applicant_id']) ?>" />
+                            <input type="hidden" name="applicant_name" value="<?= htmlspecialchars($applicant['applicant_name']) ?>" />
+                            <input type="hidden" name="resume" value="<?= htmlspecialchars($applicant['resume']) ?>" />
+                            <input type="hidden" name="company_name" value="<?= htmlspecialchars($company_name) ?>" />
+                            
+                            <div class="mb-2">
+                                <textarea name="company_message" class="form-control" rows="2" placeholder="Optional message..."></textarea>
+                            </div>
+                            <button type="submit" name="action" value="accept" class="btn btn-success btn-sm">✅ Accept</button>
+                            <button type="submit" name="action" value="reject" class="btn btn-danger btn-sm">❌ Reject</button>
+                        </form>
+                    <?php else: ?>
+                        <!-- Otherwise, show the status -->
+                        <p><strong>Decision:</strong> <?= ucfirst(htmlspecialchars($applicant['status'])) ?></p>
+                    <?php endif; ?>
                 </div>
             <?php endwhile; ?>
         </div>
