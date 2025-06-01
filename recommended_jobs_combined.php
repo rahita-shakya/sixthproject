@@ -140,6 +140,9 @@ arsort($collabRecommendedJobs);
 <head>
     <title>Recommended Jobs</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <style>
+        .job-description { display: none; }
+    </style>
 </head>
 <body>
 <div class="container mt-5">
@@ -157,13 +160,12 @@ arsort($collabRecommendedJobs);
                 $result = $stmt->get_result();
                 if ($result && $row = $result->fetch_assoc()) :
                     $title = htmlspecialchars($row['title']);
+                    $descriptionFull = htmlspecialchars($row['description']);
                     $description = htmlspecialchars(substr($row['description'], 0, 100)) . '...';
 
-                    // Calculate percentage match score
                     $totalScore = array_sum($jobVectors[$job_id]);
                     $percentage = ($score / $totalScore) * 100;
 
-                    // Fetch required skills for this job
                     $skillsStmt = $conn->prepare("SELECT skill_name FROM skills WHERE job_id = ?");
                     $skillsStmt->bind_param("i", $job_id);
                     $skillsStmt->execute();
@@ -179,7 +181,11 @@ arsort($collabRecommendedJobs);
                         <p><?= $description ?></p>
                         <p><strong>Required Skills:</strong> <?= implode(', ', $requiredSkills) ?></p>
                         <small>Match Score: <?= round($percentage, 2) ?>%</small><br>
-                        <a href="apply.php?job_id=<?= $job_id ?>" class="btn btn-sm btn-primary mt-2">Apply Now</a>
+                        <button class="btn btn-sm btn-primary mt-2 show-description" data-job-id="<?= $job_id ?>">View Description</button>
+                        <div class="job-description mt-3" id="job-description-<?= $job_id ?>">
+                            <p><?= $descriptionFull ?></p>
+                            <a href="users/apply_job.php?job_id=<?= $job_id ?>" class="btn btn-sm btn-primary">Apply Now</a>
+                        </div>
                     </li>
                 <?php endif;
                 $stmt->close();
@@ -189,137 +195,62 @@ arsort($collabRecommendedJobs);
     <?php endif; ?>
 
     <hr class="my-5">
-    <?php
-$collabRecommendedJobs = [];
-
-$currentUserId = $_SESSION['user_id'] ?? null;
-
-if ($currentUserId) {
-    // 1. Fetch all users and approved jobs
-    $users = [];
-    $jobs = [];
-
-    $result = $conn->query("SELECT DISTINCT user_id FROM job_interactions");
-    while ($row = $result->fetch_assoc()) {
-        $users[] = $row['user_id'];
-    }
-
-    $result = $conn->query("SELECT DISTINCT id FROM jobs WHERE status = 'approved'");
-    while ($row = $result->fetch_assoc()) {
-        $jobs[] = $row['id'];
-    }
-
-    // 2. Initialize User-Job matrix with zeros
-    $matrix = [];
-    foreach ($users as $user) {
-        $matrix[$user] = [];
-        foreach ($jobs as $job) {
-            $matrix[$user][$job] = 0;
-        }
-    }
-
-    // 3. Fill in job interactions
-    $result = $conn->query("SELECT user_id, job_id FROM job_interactions");
-    while ($row = $result->fetch_assoc()) {
-        $user = $row['user_id'];
-        $job = $row['job_id'];
-        if (isset($matrix[$user][$job])) {
-            $matrix[$user][$job] = 1;
-        }
-    }
-
-    // 4. Cosine similarity function (unchanged)
-    function cosineSimilarity($vecA, $vecB) {
-        $dot = 0;
-        $normA = 0;
-        $normB = 0;
-        foreach ($vecA as $i => $a) {
-            $b = $vecB[$i] ?? 0;
-            $dot += $a * $b;
-            $normA += $a * $a;
-            $normB += $b * $b;
-        }
-        if ($normA == 0 || $normB == 0) return 0;
-        return $dot / (sqrt($normA) * sqrt($normB));
-    }
-
-    // 5. Compute similarity between current user and others
-    $similarities = [];
-    foreach ($users as $user) {
-        if ($user == $currentUserId) continue;
-        // Safety: check if vectors exist
-        if (isset($matrix[$currentUserId]) && isset($matrix[$user])) {
-            $similarities[$user] = cosineSimilarity($matrix[$currentUserId], $matrix[$user]);
-        }
-    }
-
-    // 6. Sort and get top 5 similar users
-    arsort($similarities);
-    $topSimilarUsers = array_slice($similarities, 0, 5, true);
-
-    // 7. Calculate weighted job scores from top similar users
-    $jobScores = [];
-    foreach ($jobs as $jobId) {
-        // Skip if current user already applied/viewed
-        if (!isset($matrix[$currentUserId][$jobId]) || $matrix[$currentUserId][$jobId] == 1) continue;
-
-        $score = 0;
-        foreach ($topSimilarUsers as $otherUser => $sim) {
-            if (isset($matrix[$otherUser][$jobId])) {
-                $score += $sim * $matrix[$otherUser][$jobId];
-            }
-        }
-
-        if ($score > 0) {
-            $jobScores[$jobId] = $score;
-        }
-    }
-
-    // 8. Sort recommended jobs by score descending
-    arsort($jobScores);
-    $collabRecommendedJobs = $jobScores;
-}
-?>
-
-
-
 
     <h3 class="mb-4">Recommended Jobs (Collaborative Filtering)</h3>
-<?php if (empty($collabRecommendedJobs)) : ?>
-    <div class="alert alert-warning">No collaborative job recommendations found.</div>
-<?php else : ?>
-    <ul class="list-group">
-        <?php foreach ($collabRecommendedJobs as $job_id => $score) : ?>
-            <?php
-            $stmt = $conn->prepare("
-                SELECT j.title, j.description, c.name AS company_name 
-                FROM jobs j 
-                JOIN companies c ON j.company_id = c.id 
-                WHERE j.id = ? AND j.status = 'approved'
-            ");
-            $stmt->bind_param("i", $job_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            if ($result && $row = $result->fetch_assoc()) :
-                $title = htmlspecialchars($row['title']);
-                $description = htmlspecialchars(substr($row['description'], 0, 100)) . '...';
-                $companyName = htmlspecialchars($row['company_name']);
-            ?>
-                <li class="list-group-item">
-                    <h5><?= $title ?></h5>
-                    <p><?= $description ?></p>
-                    <small>Company: <?= $companyName ?></small><br>
-                    <small>Similarity Score: <?= round($score, 3) ?></small><br>
-                    <a href="apply.php?job_id=<?= $job_id ?>" class="btn btn-sm btn-success mt-2">Apply Now</a>
-                </li>
-            <?php endif;
-            $stmt->close();
-            ?>
-        <?php endforeach; ?>
-    </ul>
-<?php endif; ?>
-
+    <?php if (empty($collabRecommendedJobs)) : ?>
+        <div class="alert alert-warning">No collaborative job recommendations found.</div>
+    <?php else : ?>
+        <ul class="list-group">
+            <?php foreach ($collabRecommendedJobs as $job_id => $score) : ?>
+                <?php
+                $stmt = $conn->prepare("
+                    SELECT j.title, j.description, c.name AS company_name 
+                    FROM jobs j 
+                    JOIN companies c ON j.company_id = c.id 
+                    WHERE j.id = ? AND j.status = 'approved'
+                ");
+                $stmt->bind_param("i", $job_id);
+                $stmt->execute();
+                $result = $stmt->get_result();
+                if ($result && $row = $result->fetch_assoc()) :
+                    $title = htmlspecialchars($row['title']);
+                    $descriptionFull = htmlspecialchars($row['description']);
+                    $description = htmlspecialchars(substr($row['description'], 0, 100)) . '...';
+                    $companyName = htmlspecialchars($row['company_name']);
+                ?>
+                    <li class="list-group-item">
+                        <h5><?= $title ?> <small class="text-muted">at <?= $companyName ?></small></h5>
+                        <p><?= $description ?></p>
+                        <button class="btn btn-sm btn-primary mt-2 show-description" data-job-id="<?= $job_id ?>">View Description</button>
+                        <div class="job-description mt-3" id="job-description-<?= $job_id ?>">
+                            <p><?= $descriptionFull ?></p>
+                            <a href="users/apply_job.php?job_id=<?= $job_id ?>" class="btn btn-sm btn-primary">Apply Now</a>
+                        </div>
+                    </li>
+                <?php endif;
+                $stmt->close();
+                ?> 
+            <?php endforeach; ?>
+        </ul>
+    <?php endif; ?>
 
 </div>
+
+<script>
+    document.querySelectorAll('.show-description').forEach(button => {
+        button.addEventListener('click', () => {
+            const jobId = button.getAttribute('data-job-id');
+            const descDiv = document.getElementById('job-description-' + jobId);
+            if (!descDiv) return;
+            if (descDiv.style.display === 'block') {
+                descDiv.style.display = 'none';
+                button.textContent = 'View Description';
+            } else {
+                descDiv.style.display = 'block';
+                button.textContent = 'Hide Description';
+            }
+        });
+    });
+</script>
 </body>
 </html>
