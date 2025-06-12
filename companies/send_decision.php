@@ -25,26 +25,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $stmt->bind_param("ssii", $status, $message, $applicant_id, $job_id);
 
     if ($stmt->execute()) {
-        // Optional: send email notification here if you have applicant's email
-        /*
-        // Fetch applicant email
-        $emailStmt = $conn->prepare("SELECT email FROM applicants WHERE id = ?");
-        $emailStmt->bind_param("i", $applicant_id);
-        $emailStmt->execute();
-        $emailResult = $emailStmt->get_result();
-        if ($emailRow = $emailResult->fetch_assoc()) {
-            $email = $emailRow['email'];
-            $subject = "Job Application Update";
-            $emailMessage = "Your application for job ID $job_id has been $status.\n\nMessage from company:\n$message";
-            mail($email, $subject, $emailMessage);
+        // If accepted, check if required number of applicants is reached
+        if ($status === 'accepted') {
+            // Get total accepted applicants for this job
+            $acceptedStmt = $conn->prepare("SELECT COUNT(*) AS total_accepted FROM applications WHERE job_id = ? AND status = 'accepted'");
+            $acceptedStmt->bind_param("i", $job_id);
+            $acceptedStmt->execute();
+            $acceptedResult = $acceptedStmt->get_result();
+            $acceptedCount = $acceptedResult->fetch_assoc()['total_accepted'];
+            $acceptedStmt->close();
+
+            // Get the required number of applicants from the job table
+            $requiredStmt = $conn->prepare("SELECT applicants_required FROM jobs WHERE id = ?");
+            $requiredStmt->bind_param("i", $job_id);
+            $requiredStmt->execute();
+            $requiredResult = $requiredStmt->get_result();
+            $requiredNumber = $requiredResult->fetch_assoc()['applicants_required'];
+            $requiredStmt->close();
+
+            // If required number is reached, reject all remaining pending/null applications
+            if ($acceptedCount >= $requiredNumber) {
+                $autoRejectStmt = $conn->prepare("
+                    UPDATE applications 
+                    SET status = 'rejected' 
+                    WHERE job_id = ? 
+                    AND (status IS NULL OR status = '' OR status = 'pending')
+                ");
+                $autoRejectStmt->bind_param("i", $job_id);
+                $autoRejectStmt->execute();
+                $autoRejectStmt->close();
+            }
         }
-        $emailStmt->close();
-        */
 
         echo "<script>alert('Applicant has been $status.'); window.history.back();</script>";
     } else {
         echo "<script>alert('Failed to update application status.'); window.history.back();</script>";
     }
+
     $stmt->close();
 }
 ?>

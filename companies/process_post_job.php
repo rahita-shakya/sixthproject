@@ -9,15 +9,19 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $location = trim($_POST['location']);
     $category = trim($_POST['category']);
     $skills = $_POST['skills'];
+    $applicants_required = intval($_POST['applicants_required']);
+    $start_date = $_POST['start_date'];
+    $end_date = $_POST['end_date'];
     $company_login_id = $_SESSION['company_id']; // This is company_login_id
 
-    if (empty($title) || empty($description) || empty($location) || empty($category) || empty($skills)) {
-        $_SESSION['error'] = "All fields are required.";
+    if (empty($title) || empty($description) || empty($location) || empty($category) || empty($skills) || 
+        $applicants_required < 1 || empty($start_date) || empty($end_date)) {
+        $_SESSION['error'] = "All fields are required, including number of applicants and dates.";
         header("Location: post_job.php");
         exit();
     }
 
-    // ✅ Fetch actual company_id from companies table
+    // Fetch actual company_id from companies table
     $stmtCompany = $conn->prepare("SELECT id FROM companies WHERE company_login_id = ?");
     $stmtCompany->bind_param("i", $company_login_id);
     $stmtCompany->execute();
@@ -26,14 +30,25 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     if ($row = $resultCompany->fetch_assoc()) {
         $company_id = $row['id'];
 
-        // ✅ Now insert into jobs
-        $stmt = $conn->prepare("INSERT INTO jobs (title, description, location, category, company_id) VALUES (?, ?, ?, ?, ?)");
-        $stmt->bind_param("ssssi", $title, $description, $location, $category, $company_id);
+        // Insert into jobs - fixed typo and added missing params to bind_param
+        $stmt = $conn->prepare("INSERT INTO jobs (title, description, location, category, company_id, applicants_required, start_date, end_date) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        
+        $stmt->bind_param("ssssiiss", 
+            $title, 
+            $description, 
+            $location, 
+            $category, 
+            $company_id, 
+            $applicants_required, 
+            $start_date, 
+            $end_date
+        );
 
         if ($stmt->execute()) {
             $job_id = $stmt->insert_id;
 
-            // ✅ Insert skills
+            // Insert skills
             $skill_list = explode(',', $skills);
             foreach ($skill_list as $skill) {
                 $skill = trim($skill);
@@ -48,8 +63,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             header("Location: dashboard.php");
             exit();
         } else {
-            $_SESSION['error'] = "Error while posting job.";
-            header("Location: dashboard.php");
+            $_SESSION['error'] = "Error while posting job: " . $stmt->error;
+            header("Location: post_job.php");
             exit();
         }
     } else {
@@ -58,4 +73,5 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         exit();
     }
 }
+
 ?>

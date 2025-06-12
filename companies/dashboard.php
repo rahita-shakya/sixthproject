@@ -2,7 +2,11 @@
 session_start();
 require_once '../core/database.php';
 
-$company_login_id = $_SESSION['company_id'];
+$company_login_id = $_SESSION['company_id'] ?? null;
+if (!$company_login_id) {
+    echo "<script>alert('Please login first.'); window.location.href='login.php';</script>";
+    exit;
+}
 
 // 🔍 Get the actual company ID using the login ID
 $stmtid = $conn->prepare("SELECT id, name FROM companies WHERE company_login_id = ?");
@@ -40,18 +44,27 @@ if ($row = $resultid->fetch_assoc()) {
     <a href="post_job.php" class="btn btn-success mb-4">➕ Post New Job</a>
 
     <?php if ($result->num_rows > 0) { ?>
-        <?php while ($job = $result->fetch_assoc()) { ?>
+        <?php while ($job = $result->fetch_assoc()) { 
+            // Fetch the applicants_required value directly from the jobs table
+            $applicantsRequired = $job['applicants_required'] ?? 0;
+        ?>
             <div class="card mb-3 shadow-sm">
                 <div class="card-body">
                     <h5 class="card-title"><?= htmlspecialchars($job['title']) ?></h5>
                     <p class="card-text"><?= nl2br(htmlspecialchars($job['description'])) ?></p>
                     <p class="text-muted">📍 Location: <?= htmlspecialchars($job['location']) ?></p>
                     <p class="text-muted">🕒 Posted on: <?= $job['created_at'] ?></p>
-                    
+                    <p>
+                        🗓️ Start Date: <?= htmlspecialchars($job['start_date'] ?? 'N/A') ?> |
+                        🗓️ End Date: <?= htmlspecialchars($job['end_date'] ?? 'N/A') ?>
+                    </p>
+
                     <!-- Status badge -->
                     <span class="badge bg-<?= ($job['status'] === 'approved') ? 'success' : 'warning' ?>">
                         <?= ucfirst($job['status']) ?>
                     </span>
+
+                    <p class="mt-2">👥 Applicants Required: <strong><?= htmlspecialchars($applicantsRequired) ?></strong></p>
 
                     <div class="mt-3">
                         <a href="view_applicants.php?job_id=<?= $job['id'] ?>" class="btn btn-warning btn-sm">👁️ View Applicants</a>
@@ -64,8 +77,6 @@ if ($row = $resultid->fetch_assoc()) {
     <?php } else { ?>
         <div class="alert alert-info">You haven't posted any jobs yet.</div>
     <?php } ?>
-    
-
 </div>
 </body>
 </html>

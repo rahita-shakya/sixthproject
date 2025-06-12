@@ -5,9 +5,9 @@ session_start();
 $user_id = $_SESSION['user_id'] ?? 0;
 $job_id = $_GET['job_id'] ?? 0;
 
-if (!$user_id || !$job_id) {
-    die("Invalid request.");
-}
+// if (!$user_id || !$job_id) {
+//     die("Invalid request.");
+// }
 
 // Step 1: Get job details
 $stmt = $conn->prepare("SELECT * FROM jobs WHERE id = ?");

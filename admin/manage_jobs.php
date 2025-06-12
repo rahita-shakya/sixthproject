@@ -30,9 +30,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $category_id = intval($_POST['category_id']);
     $company_id = intval($_POST['company_id']);
     $description = sanitize($_POST['description']);
+    $applicants_required = intval($_POST['applicants_required']);
+    $start_date = sanitize($_POST['start_date']);
+    $end_date = sanitize($_POST['end_date']);
 
-    $stmt = $conn->prepare("INSERT INTO jobs (title, category_id, company_id, description, status) VALUES (?, ?, ?, ?, 'pending')");
-    $stmt->bind_param("siis", $title, $category_id, $company_id, $description);
+    $stmt = $conn->prepare("INSERT INTO jobs (title, category_id, company_id, description, applicants_required, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')");
+    $stmt->bind_param("siisiss", $title, $category_id, $company_id, $description, $applicants_required, $start_date, $end_date);
 
     if ($stmt->execute()) {
         echo "<div class='alert alert-success'>Job added successfully!</div>";
@@ -134,6 +137,21 @@ function sanitize($input) {
             <textarea name="description" id="description" class="form-control" required></textarea>
         </div>
 
+        <div class="mb-3">
+            <label for="applicants_required" class="form-label">Applicants Required</label>
+            <input type="number" name="applicants_required" id="applicants_required" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="start_date" class="form-label">Start Date</label>
+            <input type="date" name="start_date" id="start_date" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label for="end_date" class="form-label">End Date</label>
+            <input type="date" name="end_date" id="end_date" class="form-control" required>
+        </div>
+
         <button type="submit" class="btn btn-primary">Add Job</button>
     </form>
     <?php endif; ?>
@@ -146,6 +164,14 @@ function sanitize($input) {
                 <div class="list-group-item">
                     <h4><?php echo htmlspecialchars($job['title']); ?></h4>
                     <p><strong>Status:</strong> <?php echo ucfirst($job['status']); ?></p>
+                    
+                    <?php if (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true): ?>
+                        <p><strong>Company:</strong> <?php echo htmlspecialchars($job['company_name']); ?></p>
+                        <p><strong>Applicants Required:</strong> <?php echo htmlspecialchars($job['applicants_required']); ?></p>
+                        <p><strong>Start Date:</strong> <?php echo htmlspecialchars($job['start_date']); ?></p>
+                        <p><strong>End Date:</strong> <?php echo htmlspecialchars($job['end_date']); ?></p>
+                    <?php endif; ?>
+
                     <p><?php echo htmlspecialchars($job['description']); ?></p>
 
                     <?php if (isset($_SESSION['company_logged_in']) && $_SESSION['company_logged_in'] === true): ?>
