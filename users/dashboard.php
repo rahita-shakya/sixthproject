@@ -84,7 +84,7 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
 <h2 class="dashboard-heading"><i class="fa fa-tachometer-alt"></i> Welcome to your Dashboard</h2>
 
 <div class="job-listing-container">
-    <h3 class="text-center mb-4">Latest Approved Jobs</h3>
+    <h3 class="text-center mb-4">Available jobs</h3>
     <div class="row">
         <?php
         if ($result->num_rows > 0) {
@@ -97,7 +97,14 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
                                 <button class='btn btn-outline-warning btn-sm mt-2 show-description' data-job-id='{$job['id']}'>View Description</button>
                                 <div class='job-description mt-3' id='job-description-{$job['id']}' style='display:none;'>
                                     <p>{$job['description']}</p>
-                                    <a href='apply_job.php?job_id={$job['id']}' class='btn btn-sm btn-primary'>Apply Now</a>
+<p>
+    <strong>Applicants Required:</strong> {$job['applicants_required']}<br>
+    <strong>Start Date:</strong> {$job['start_date']}<br>
+    <strong>End Date:</strong> {$job['end_date']}
+</p>
+<a href='apply_job.php?job_id={$job['id']}' class='btn btn-sm btn-primary'>Apply Now</a>
+
+
                                 </div>
                             </div>
                         </div>

@@ -154,13 +154,18 @@ arsort($collabRecommendedJobs);
         <ul class="list-group">
             <?php foreach ($recommendedJobs as $job_id => $score) : ?>
                 <?php
-                $stmt = $conn->prepare("SELECT title, description FROM jobs WHERE id = ? AND status = 'approved'");
+                $stmt = $conn->prepare("SELECT title, description, applicants_required, start_date, end_date FROM jobs WHERE id = ? AND status = 'approved'");
+
                 $stmt->bind_param("i", $job_id);
                 $stmt->execute();
                 $result = $stmt->get_result();
                 if ($result && $row = $result->fetch_assoc()) :
                     $title = htmlspecialchars($row['title']);
                     $descriptionFull = htmlspecialchars($row['description']);
+                    $applicants = htmlspecialchars($row['applicants_required']);
+$start = htmlspecialchars($row['start_date']);
+$end = htmlspecialchars($row['end_date']);
+
                     $description = htmlspecialchars(substr($row['description'], 0, 100)) . '...';
 
                     $totalScore = array_sum($jobVectors[$job_id]);
@@ -183,6 +188,9 @@ arsort($collabRecommendedJobs);
                         <small>Match Score: <?= round($percentage, 2) ?>%</small><br>
                         <button class="btn btn-sm btn-primary mt-2 show-description" data-job-id="<?= $job_id ?>">View Description</button>
                         <div class="job-description mt-3" id="job-description-<?= $job_id ?>">
+                            <p><strong>Applicants Required:</strong> <?= $applicants ?></p>
+                            <p><strong>Start Date:</strong> <?= $start ?> <br> <strong>End Date:</strong> <?= $end ?></p>
+
                             <p><?= $descriptionFull ?></p>
                             <a href="users/apply_job.php?job_id=<?= $job_id ?>" class="btn btn-sm btn-primary">Apply Now</a>
                         </div>
@@ -204,7 +212,8 @@ arsort($collabRecommendedJobs);
             <?php foreach ($collabRecommendedJobs as $job_id => $score) : ?>
                 <?php
                 $stmt = $conn->prepare("
-                    SELECT j.title, j.description, c.name AS company_name 
+                    SELECT j.title, j.description, j.applicants_required, j.start_date, j.end_date, c.name AS company_name 
+
                     FROM jobs j 
                     JOIN companies c ON j.company_id = c.id 
                     WHERE j.id = ? AND j.status = 'approved'
@@ -215,6 +224,10 @@ arsort($collabRecommendedJobs);
                 if ($result && $row = $result->fetch_assoc()) :
                     $title = htmlspecialchars($row['title']);
                     $descriptionFull = htmlspecialchars($row['description']);
+                    $applicants = htmlspecialchars($row['applicants_required']);
+                    $start = htmlspecialchars($row['start_date']);
+                    $end = htmlspecialchars($row['end_date']);
+
                     $description = htmlspecialchars(substr($row['description'], 0, 100)) . '...';
                     $companyName = htmlspecialchars($row['company_name']);
                 ?>
@@ -223,6 +236,9 @@ arsort($collabRecommendedJobs);
                         <p><?= $description ?></p>
                         <button class="btn btn-sm btn-primary mt-2 show-description" data-job-id="<?= $job_id ?>">View Description</button>
                         <div class="job-description mt-3" id="job-description-<?= $job_id ?>">
+                            <p><strong>Applicants Required:</strong> <?= $applicants ?></p>
+                            <p><strong>Start Date:</strong> <?= $start ?> <br> <strong>End Date:</strong> <?= $end ?></p>
+
                             <p><?= $descriptionFull ?></p>
                             <a href="users/apply_job.php?job_id=<?= $job_id ?>" class="btn btn-sm btn-primary">Apply Now</a>
                         </div>
