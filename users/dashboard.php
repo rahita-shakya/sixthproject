@@ -4,7 +4,6 @@ require_once '../core/database.php';
 require_once '../core/functions.php';
 checkLogin();
 
-
 // Get approved jobs
 $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies.location AS company_location 
                         FROM jobs 
@@ -37,7 +36,7 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
         }
         .dashboard-heading {
             text-align: center;
-            color:rgb(255, 245, 245);
+            color: rgb(255, 245, 245);
             margin: 30px 0;
         }
         .job-listing-container {
@@ -72,9 +71,8 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
         <a class="navbar-brand fw-bold" href="#">JobSelect</a>
         <div class="d-flex gap-3">
             <a class="nav-link" href="../recommended_jobs_combined.php">Recommended Jobs</a>
-            <a href="message.php?job_id=<?= $job_id ?>" style="text-decoration: none;">View Status</a>
-
-
+             <a class="nav-link" href="applications.php">My Applications</a>
+            <!-- <a class="nav-link" href="message.php">View Status</a> -->
             <a class="nav-link" href="my_skills.php">My Skills</a>
             <a class="nav-link" href="logout.php">Logout</a>
         </div>
@@ -89,6 +87,12 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
         <?php
         if ($result->num_rows > 0) {
             while ($job = $result->fetch_assoc()) {
+                $currentDate = date('Y-m-d');
+                $endDate = $job['end_date'];
+                $applyButton = ($currentDate <= $endDate)
+                    ? "<a href='apply_job.php?job_id={$job['id']}' class='btn btn-sm btn-primary'>Apply Now</a>"
+                    : "<button class='btn btn-sm btn-secondary' disabled>Application Closed</button>";
+
                 echo "<div class='col-md-6 mb-4'>
                         <div class='card shadow-sm h-100'>
                             <div class='card-body'>
@@ -97,14 +101,12 @@ $result = $conn->query("SELECT jobs.*, companies.name AS company_name, companies
                                 <button class='btn btn-outline-warning btn-sm mt-2 show-description' data-job-id='{$job['id']}'>View Description</button>
                                 <div class='job-description mt-3' id='job-description-{$job['id']}' style='display:none;'>
                                     <p>{$job['description']}</p>
-<p>
-    <strong>Applicants Required:</strong> {$job['applicants_required']}<br>
-    <strong>Start Date:</strong> {$job['start_date']}<br>
-    <strong>End Date:</strong> {$job['end_date']}
-</p>
-<a href='apply_job.php?job_id={$job['id']}' class='btn btn-sm btn-primary'>Apply Now</a>
-
-
+                                    <p>
+                                        <strong>Applicants Required:</strong> {$job['applicants_required']}<br>
+                                        <strong>Start Date:</strong> {$job['start_date']}<br>
+                                        <strong>End Date:</strong> {$job['end_date']}
+                                    </p>
+                                    $applyButton
                                 </div>
                             </div>
                         </div>

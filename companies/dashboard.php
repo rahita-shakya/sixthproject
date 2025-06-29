@@ -8,15 +8,22 @@ if (!$company_login_id) {
     exit;
 }
 
-// 🔍 Get the actual company ID using the login ID
-$stmtid = $conn->prepare("SELECT id, name FROM companies WHERE company_login_id = ?");
+// ✅ Get company name from company_login table
+$stmtid = $conn->prepare("SELECT name FROM companies_login WHERE id = ?");
 $stmtid->bind_param("i", $company_login_id);
 $stmtid->execute();
 $resultid = $stmtid->get_result();
 
 if ($row = $resultid->fetch_assoc()) {
-    $company_id = $row['id'];
     $company_name = $row['name'];
+
+    // Still need to get the company_id from `companies` table for job listing
+    $stmtCompany = $conn->prepare("SELECT id FROM companies WHERE company_login_id = ?");
+    $stmtCompany->bind_param("i", $company_login_id);
+    $stmtCompany->execute();
+    $resCompany = $stmtCompany->get_result();
+    $companyData = $resCompany->fetch_assoc();
+    $company_id = $companyData['id'] ?? 0;
 
     // 📋 Fetch jobs posted by this company
     $stmt = $conn->prepare("SELECT * FROM jobs WHERE company_id = ? ORDER BY created_at DESC");
@@ -42,10 +49,10 @@ if ($row = $resultid->fetch_assoc()) {
     <a href="../index.php" class="btn btn-secondary mb-3">🔙 Go Back</a>
     <h3 class="mb-4">Posted Jobs - <?= htmlspecialchars($company_name) ?></h3>
     <a href="post_job.php" class="btn btn-success mb-4">➕ Post New Job</a>
+    <a href="edit_profile.php" class="btn btn-info mb-4">✏️ Edit Profile</a>
 
     <?php if ($result->num_rows > 0) { ?>
         <?php while ($job = $result->fetch_assoc()) { 
-            // Fetch the applicants_required value directly from the jobs table
             $applicantsRequired = $job['applicants_required'] ?? 0;
         ?>
             <div class="card mb-3 shadow-sm">
@@ -59,7 +66,6 @@ if ($row = $resultid->fetch_assoc()) {
                         🗓️ End Date: <?= htmlspecialchars($job['end_date'] ?? 'N/A') ?>
                     </p>
 
-                    <!-- Status badge -->
                     <span class="badge bg-<?= ($job['status'] === 'approved') ? 'success' : 'warning' ?>">
                         <?= ucfirst($job['status']) ?>
                     </span>
