@@ -9,6 +9,7 @@ if (!isset($_SESSION['company_id'])) {
 
 $company_login_id = $_SESSION['company_id'];
 
+// Get company_id from companies table
 $stmtid = $conn->prepare("SELECT id FROM companies WHERE company_login_id = ?");
 $stmtid->bind_param("i", $company_login_id);
 $stmtid->execute();
@@ -22,13 +23,12 @@ if ($row = $resultid->fetch_assoc()) {
 }
 
 $job_id = isset($_GET['id']) ? (int)$_GET['id'] : 0;
-
 if ($job_id <= 0) {
     echo "Invalid Job ID.";
     exit();
 }
 
-// If form submitted, update the job
+// If form submitted, update the job and skills
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = $_POST['title'] ?? '';
     $description = $_POST['description'] ?? '';
@@ -39,12 +39,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $start_date = $_POST['start_date'] ?? '';
     $end_date = $_POST['end_date'] ?? '';
 
+    // Update jobs table (without skills column)
     $stmt = $conn->prepare("UPDATE jobs 
-        SET title = ?, description = ?, location = ?, category = ?, skills = ?, applicants_required = ?, start_date = ?, end_date = ? 
+        SET title = ?, description = ?, location = ?, category = ?, applicants_required = ?, start_date = ?, end_date = ? 
         WHERE id = ? AND company_id = ?");
-    $stmt->bind_param("sssssisiii", $title, $description, $location, $category, $skills, $applicants_required, $start_date, $end_date, $job_id, $company_id);
+    $stmt->bind_param("ssssissii", $title, $description, $location, $category, $applicants_required, $start_date, $end_date, $job_id, $company_id);
 
     if ($stmt->execute()) {
+        // Delete old skills for this job
+        $delStmt = $conn->prepare("DELETE FROM skills WHERE job_id = ?");
+        $delStmt->bind_param("i", $job_id);
+        $delStmt->execute();
+
+        // Insert new skills
+        $skill_list = explode(',', $skills);
+        foreach ($skill_list as $skill) {
+            $skill = trim($skill);
+            if (!empty($skill)) {
+                $skill_stmt = $conn->prepare("INSERT INTO skills (job_id, skill_name) VALUES (?, ?)");
+                $skill_stmt->bind_param("is", $job_id, $skill);
+                $skill_stmt->execute();
+            }
+        }
+
         echo "<script>alert('Job updated successfully!'); window.location.href='dashboard.php';</script>";
         exit();
     } else {
@@ -63,6 +80,17 @@ if (!$job) {
     echo "Job not found or you do not have permission to edit this job.";
     exit();
 }
+
+// Fetch existing skills for this job
+$skill_names = [];
+$skillStmt = $conn->prepare("SELECT skill_name FROM skills WHERE job_id = ?");
+$skillStmt->bind_param("i", $job_id);
+$skillStmt->execute();
+$skillResult = $skillStmt->get_result();
+while ($rowSkill = $skillResult->fetch_assoc()) {
+    $skill_names[] = $rowSkill['skill_name'];
+}
+$skills_str = implode(", ", $skill_names);
 ?>
 
 <!DOCTYPE html>
@@ -108,11 +136,11 @@ if (!$job) {
                 ?>
             </select>
         </div>
-        <!-- <div class="mb-3">
+        <div class="mb-3">
             <label>Required Skills</label>
-            <input type="text" name="skills" class="form-control" value="<?= htmlspecialchars($job['skills']) ?>" required>
+            <input type="text" name="skills" class="form-control" value="<?= htmlspecialchars($skills_str) ?>" required>
             <small class="text-muted">Separate multiple skills with commas.</small>
-        </div> -->
+        </div>
         <div class="mb-3">
             <label>Number of Applicants Required</label>
             <input type="number" name="applicants_required" class="form-control" value="<?= htmlspecialchars($job['applicants_required']) ?>" min="1" required>

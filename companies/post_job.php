@@ -99,7 +99,7 @@ require_once '../core/database.php';  // Make sure your DB connection is set her
 
             <button type="submit" class="btn btn-primary w-100">Post Job</button>
         </form>
-    </div>
+    </div>  
 </div>
 
 <script>
