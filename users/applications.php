@@ -60,7 +60,7 @@ $result = $stmt->get_result();
                 <tr>
                     <th>Job Title</th>
                     <th>Company</th>
-                    <th>Location</th>
+                    <!-- <th>Location</th> -->
                     <th>Resume</th>
                     <th>Status</th>
                     <th>Applied Date</th>
@@ -77,14 +77,15 @@ $result = $stmt->get_result();
                     <tr>
                         <td><?= htmlspecialchars($row['job_title']) ?></td>
                         <td><?= htmlspecialchars($row['company_name']) ?></td>
-                        <td><?= htmlspecialchars($row['company_location']) ?></td>
-                        <td>
-                            <?php if (!empty($row['resume'])): ?>
-                                <a href="../uploads/<?= htmlspecialchars($row['resume']) ?>" target="_blank">View</a>
-                            <?php else: ?>
-                                Not Uploaded
-                            <?php endif; ?>
-                        </td>
+                        <!-- <td><?= htmlspecialchars($row['company_location']) ?></td> -->
+                       <td>
+    <?php if (!empty($row['resume'])): ?>
+        <a href="../uploads/resumes/<?= htmlspecialchars($row['resume']) ?>" target="_blank">View</a>
+    <?php else: ?>
+        Not Uploaded
+    <?php endif; ?>
+</td>
+
                         <td class="<?= $statusClass ?>"><?= ucfirst($status) ?></td>
                         <td><?= htmlspecialchars($row['applied_at']) ?></td>
                     </tr>

@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && !$already_applied) {
                                 <h5>You have successfully applied for this job!</h5>
                               </div>
                               <div class='text-center mb-5'>
-                                <a href='search_jobs.php' class='btn btn-success mt-3'>Back to Job Listings</a>
+                                <a href='dashboard.php' class='btn btn-success mt-3'>Back to Job Listings</a>
                               </div>";
         } else {
             $alert_message = "<div class='alert alert-danger text-center mt-5 shadow'>Error submitting your application: " . $stmt->error . "</div>";

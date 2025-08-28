@@ -16,7 +16,7 @@ while ($row = $res->fetch_assoc()) {
     $skills[] = strtolower($row['skill_name']);
 }
 
-// 2. Create job vectors for Content-Based Filtering
+// 2. Create job vectors
 $jobVectors = [];
 $res = $conn->query("SELECT job_id, skill_name FROM skills");
 while ($row = $res->fetch_assoc()) {
@@ -31,7 +31,7 @@ while ($row = $res->fetch_assoc()) {
     }
 }
 
-// 3. Create current user's skill vector
+// 3. User skill vector
 $userVector = array_fill(0, count($skills), 0);
 $stmt = $conn->prepare("SELECT skill FROM user_skills WHERE user_id = ?");
 $stmt->bind_param("i", $user_id);
@@ -46,15 +46,17 @@ while ($row = $res->fetch_assoc()) {
 }
 $stmt->close();
 
-// 4. Content-Based Recommendations
+// 4. Content-Based Recommendations (percentage based on job's required skills)
 $recommendedJobs = [];
 foreach ($jobVectors as $job_id => $jobVector) {
     $score = 0;
+    $jobSkillCount = array_sum($jobVector);
     for ($i = 0; $i < count($skills); $i++) {
         $score += $jobVector[$i] * $userVector[$i];
     }
-    if ($score > 0) {
-        $recommendedJobs[$job_id] = $score;
+    if ($score > 0 && $jobSkillCount > 0) {
+        $percentage = ($score / $jobSkillCount) * 100;
+        $recommendedJobs[$job_id] = round($percentage, 2);
     }
 }
 
@@ -95,7 +97,7 @@ arsort($similarityScores);
 
 $collabRecommendedJobs = [];
 foreach ($similarityScores as $otherUser => $simScore) {
-    $stmt = $conn->prepare("SELECT DISTINCT s.job_id FROM skills s JOIN user_skills us ON us.skill = s.skill_name WHERE us.user_id = ?");
+    $stmt = $conn->prepare("SELECT job_id FROM job_interactions WHERE user_id = ?");
     $stmt->bind_param("i", $otherUser);
     $stmt->execute();
     $res = $stmt->get_result();
@@ -134,14 +136,29 @@ arsort($hybridScores);
 </head>
 <body>
 <div class="container mt-5">
-    <h3 class="mb-4">Recommended Jobs for you</h3>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h3>Recommended Jobs for You</h3>
+        <a href="users/dashboard.php" class="btn btn-secondary">Go Back to Dashboard</a>
+    </div>
+
     <?php if (empty($hybridScores)) : ?>
         <div class="alert alert-warning">No hybrid job recommendations found.</div>
     <?php else : ?>
         <ul class="list-group">
             <?php foreach ($hybridScores as $job_id => $score) : ?>
                 <?php
-                $stmt = $conn->prepare("SELECT j.title, j.description, j.applicants_required, j.start_date, j.end_date, c.name AS company_name FROM jobs j JOIN companies c ON j.company_id = c.id WHERE j.id = ? AND j.status = 'approved'");
+                $contentScore = isset($recommendedJobs[$job_id]) ? $recommendedJobs[$job_id] : null;
+                $collabScore = isset($collabRecommendedJobs[$job_id]) ? $collabRecommendedJobs[$job_id] : 0;
+
+                // Show job only if contentScore >= 50 OR collabScore >= 0.1
+                if (($contentScore === null || $contentScore < 50) && $collabScore < 0.1) {
+                    continue;
+                }
+
+                $stmt = $conn->prepare("SELECT j.title, j.description, j.applicants_required, j.start_date, j.end_date, c.name AS company_name, c.location 
+                                        FROM jobs j 
+                                        JOIN companies c ON j.company_id = c.id 
+                                        WHERE j.id = ? AND j.status = 'approved'");
                 $stmt->bind_param("i", $job_id);
                 $stmt->execute();
                 $result = $stmt->get_result();
@@ -153,16 +170,30 @@ arsort($hybridScores);
                     $start = htmlspecialchars($row['start_date']);
                     $end = htmlspecialchars($row['end_date']);
                     $company = htmlspecialchars($row['company_name']);
+                    $location = htmlspecialchars($row['location']);
+                    $today = date('Y-m-d');
                 ?>
                     <li class="list-group-item">
-                        <h5><?= $title ?> <small class="text-muted">at <?= $company ?></small></h5>
+                        <h5><?= $title ?> 
+                            <small class="text-muted">at <?= $company ?> (<?= $location ?>)</small>
+                        </h5>
+                        <?php if ($contentScore !== null): ?>
+                            <p><strong>Content Match:</strong> <?= $contentScore ?>%</p>
+                        <?php endif; ?>
+                        <?php if ($collabScore > 0): ?>
+                            <!-- <p><strong>Collaborative Score:</strong> <?= round($collabScore, 3) ?></p> -->
+                        <?php endif; ?>
                         <p><?= $description ?></p>
                         <button class="btn btn-sm btn-primary mt-2 show-description" data-job-id="<?= $job_id ?>">View Description</button>
                         <div class="job-description mt-3" id="job-description-<?= $job_id ?>">
                             <p><strong>Applicants Required:</strong> <?= $applicants ?></p>
                             <p><strong>Start Date:</strong> <?= $start ?> <br> <strong>End Date:</strong> <?= $end ?></p>
                             <p><?= $descriptionFull ?></p>
-                            <a href="users/apply_job.php?job_id=<?= $job_id ?>" class="btn btn-sm btn-primary">Apply Now</a>
+                            <?php if ($today <= $end): ?>
+                                <a href="users/apply_job.php?job_id=<?= $job_id ?>" class="btn btn-sm btn-success">Apply Now</a>
+                            <?php else: ?>
+                                <span class="badge bg-danger">Application Closed</span>
+                            <?php endif; ?>
                         </div>
                     </li>
                 <?php endif; $stmt->close(); ?>

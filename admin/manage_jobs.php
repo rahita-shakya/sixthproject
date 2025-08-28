@@ -4,7 +4,7 @@ session_start();
 
 // Check if logged-in user is a company or admin
 if (isset($_SESSION['company_logged_in']) && $_SESSION['company_logged_in'] === true) {
-    $company_id = $_SESSION['company_id']; // Assuming company ID is stored in session
+    $company_id = $_SESSION['company_id'];
     $query = "SELECT jobs.*, companies.name AS company_name 
               FROM jobs 
               JOIN categories ON jobs.category_id = categories.id 
@@ -13,13 +13,11 @@ if (isset($_SESSION['company_logged_in']) && $_SESSION['company_logged_in'] === 
               ORDER BY jobs.id DESC";
 }
 elseif (isset($_SESSION['admin_logged_in']) && $_SESSION['admin_logged_in'] === true) {
-    // Admin can see all jobs, with their status
     $query = "SELECT jobs.*, companies.name AS company_name 
               FROM jobs 
               JOIN companies ON jobs.company_id = companies.id 
               ORDER BY jobs.id DESC";
 } else {
-    // Redirect if not logged in
     header('Location: login.php');
     exit();
 }
@@ -170,6 +168,26 @@ function sanitize($input) {
                         <p><strong>Applicants Required:</strong> <?php echo htmlspecialchars($job['applicants_required']); ?></p>
                         <p><strong>Start Date:</strong> <?php echo htmlspecialchars($job['start_date']); ?></p>
                         <p><strong>End Date:</strong> <?php echo htmlspecialchars($job['end_date']); ?></p>
+
+                        <?php
+                            // Fetch skills for the job
+                            $job_id = $job['id'];
+                           $skill_stmt = $conn->prepare("
+    SELECT s.skill_name 
+    FROM skills 
+    JOIN skills AS s ON skills.id = s.id 
+    WHERE skills.job_id = ?
+");
+
+                            $skill_stmt->bind_param("i", $job_id);
+                            $skill_stmt->execute();
+                            $skill_result = $skill_stmt->get_result();
+                            $skills = [];
+                            while ($skill = $skill_result->fetch_assoc()) {
+                                $skills[] = $skill['skill_name'];
+                            }
+                        ?>
+                        <p><strong>Required Skills:</strong> <?php echo !empty($skills) ? implode(', ', $skills) : 'No skills listed'; ?></p>
                     <?php endif; ?>
 
                     <p><?php echo htmlspecialchars($job['description']); ?></p>
